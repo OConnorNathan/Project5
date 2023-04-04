@@ -16,13 +16,12 @@ int main(){
     cAddr.sin_addr.s_addr = inet_addr(SERVERIP);
 
     //Create socket
-    cSocket = socket(AF_INET, SOCK_STREAM, 0);
+    cSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (cSocket == -1) {
         perror(("Philosopher (%d): socket creation failed\n", getpid()));
         exit(13);
     }
 
-    printf("CSocket %d\n", cSocket);
     //Create connection to ServerC
     err = connect(cSocket, (struct sockaddr*)&cAddr, sizeof(struct sockaddr_in));
     if (err == -1) {
@@ -49,21 +48,27 @@ int main(){
         else{
             printf("Philosopher (%d): Hungry\n", getpid());
 
-            err = send(cSocket, task, 1, 0);
+            memset(buf1, 0, BUFLEN);
+            buf1[0] = task;
+            err = send(cSocket, buf1, BUFLEN, 0);
             if (err == -1) {
                 fprintf(stderr, "Philosopher (%d): send failed with errno %d\n", getpid(), errno);
                 exit(15);
             }
 
+            memset(buf1, 0, BUFLEN);
             err = recv(cSocket, buf1, BUFLEN, 0);
             if (err == -1) {
                 fprintf(stderr, "Philosopher (%d): recv failed\n", getpid());
                 exit(16);
             }
+            printf("Philosopher (%d): %s\n", getpid(), buf1);
             printf("Philosopher (%d): Eating for %d seconds\n", getpid(), sleepTime);
             sleep(sleepTime);
 
-            err = send(cSocket, DONE, 1, 0);
+            memset(buf1, 0, BUFLEN);
+            buf1[0] = DONE;
+            err = send(cSocket, buf1, BUFLEN, 0);
             if (err == -1) {
                 fprintf(stderr, "Philosopher (%d): send failed\n", getpid());
                 exit(15);

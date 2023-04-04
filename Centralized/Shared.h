@@ -19,7 +19,7 @@
 #define SERVERIP "127.0.0.1"
 #define SERVERNAME "ahscentos"
 #define BUFLEN 100
-#define NUMPHILOSOPHERS 3
+#define NUMPHILOSOPHERS 5
 #define THINKING '0'
 #define HUNGRY '1'
 #define EATING '2'

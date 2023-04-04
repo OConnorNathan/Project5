@@ -1,8 +1,8 @@
 
 #include "Shared.h"
 
-pthread_mutex_t forks[NUMPHILOSOPHERS] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, 
-PTHREAD_MUTEX_INITIALIZER};
+pthread_mutex_t forks[NUMPHILOSOPHERS] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
+PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 
 void takeForks(int, int);
 void* threadFunc(void*);
@@ -41,17 +41,13 @@ int main(){
 
     int connections = 0;
     while (connections < NUMPHILOSOPHERS) {    //Wait for all philosophers
-        printf("%d\n", connections);
-        printf("Before Listen\n");
         err = listen(sSocket, NUMPHILOSOPHERS); //NOTE: Do we need to listen each time?
         if (err == -1) {
             perror("socServer: listen failed");
             exit(3);
         }
-        printf("Before accept\n");
         cSocLen = sizeof(sAddr);
         pInfo[connections].cSocket = accept(sSocket, (struct sockaddr*)&cAddr, (socklen_t*)&cSocLen);
-        printf("After accept\n");
         pInfo[connections].pid = connections;
     
         if (pInfo[connections++].cSocket == -1) {
@@ -59,7 +55,6 @@ int main(){
             exit(4);
         }
     }
-     printf("Exited loop\n");
 
     for (i = 0; i < NUMPHILOSOPHERS; i++) { //create a thread for each philosopher to handle recv and send
         err = pthread_create(&threads[i], NULL, threadFunc, (void*)&pInfo[i]); 
@@ -88,7 +83,6 @@ void* threadFunc(void* p) {
     int cSocket = info->cSocket;
     char buffer[BUFLEN];
 
-    printf("cSocket: %d\npid: %d\n", cSocket, pid);
     for (;;) {
         //printf("Recieving\n");
         int err = recv(cSocket, buffer, BUFLEN, 0);
@@ -96,7 +90,7 @@ void* threadFunc(void* p) {
             fprintf(stderr, "Failed to recv with errno %d\n", errno);
         }
         if (buffer[0] == HUNGRY) {   //Philosopher: Hungry
-            //takeForks(i); //Try to take forks
+            takeForks(pid, cSocket); //Try to take forks
             memset(buffer, 0, BUFLEN);
         }
         else if (buffer[0] == DONE) {    //Philosopher: done (eating)
@@ -109,17 +103,39 @@ void* threadFunc(void* p) {
 
 void takeForks(int id, int cSocket) {
     char buffer[BUFLEN];
+    char buf[2];
     int left = (id - 1 + NUMPHILOSOPHERS) % NUMPHILOSOPHERS;
     int right = (id + 1) % NUMPHILOSOPHERS;
-
+    int err;
     pthread_mutex_lock(&forks[left]);
     pthread_mutex_lock(&forks[right]);
 
-    send(cSocket, EATING, BUFLEN, 0);    //EATEAINGTING
+    memset(buffer, 0, BUFLEN);
+    printf("Granting access to forks %d, %d\n", left, right);
+    strncpy(buffer, "Access granted for forks ", 100);
+    sprintf(buf, "%d", left);
+    strcat(buffer, buf);
+    strcat(buffer, ", ");
+    sprintf(buf, "%d", right);
+    strcat(buffer, buf);
 
-    recv(cSocket, buffer, BUFLEN, 0);
+    err = send(cSocket, buffer, BUFLEN, 0);
+    if (err == -1) {
+        perror("Controller: failed to send to socket");
+        exit(2);
+    }
+
+    memset(buffer, 0, BUFLEN);
+
+    err = recv(cSocket, buffer, BUFLEN, 0);
+    if (err == -1) {
+        perror("Controller: failed to read from socket");
+        exit(2);
+    }
+
     pthread_mutex_unlock(&forks[left]);
     pthread_mutex_unlock(&forks[right]);
+    printf("Released forks %d, %d\n", left, right);
 }
 
 //void 
