@@ -1,8 +1,8 @@
 
 #include "Shared.h"
 
-pthread_mutex_t forks[NUMPHILOSOPHERS] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
-PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+pthread_mutex_t forks[NUMPHILOSOPHERS];// = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER,
+//PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 
 void takeForks(int, int);
 void* threadFunc(void*);
@@ -13,12 +13,17 @@ typedef struct philInfo {
 } philInfo;
 
 int main(){
+    int i;
     int sSocket, err, cSocLen;
     struct sockaddr_in sAddr;
     struct sockaddr_in cAddr;
     char buffer[BUFLEN];
     pthread_t threads[NUMPHILOSOPHERS];
     philInfo pInfo[NUMPHILOSOPHERS];
+
+    for (i = 0; i < NUMPHILOSOPHERS; i++) {
+        pthread_mutex_init(&forks[i], NULL);
+    }
 
     int i;
 
