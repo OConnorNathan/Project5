@@ -12,7 +12,7 @@ typedef struct philInfo {
     int cSocket;
 } philInfo;
 
-int main(){
+int main() {
     int i;
     int sSocket, err, cSocLen;
     struct sockaddr_in sAddr;
@@ -21,7 +21,7 @@ int main(){
     pthread_t threads[NUMPHILOSOPHERS];
     philInfo pInfo[NUMPHILOSOPHERS];
 
-    for (i = 0; i < NUMPHILOSOPHERS; i++) {
+    for (i = 0; i < NUMPHILOSOPHERS; i++) {     //mutex initialization
         pthread_mutex_init(&forks[i], NULL);
     }
 
@@ -48,7 +48,7 @@ int main(){
     while (connections < NUMPHILOSOPHERS) {    //Wait for all philosophers
         err = listen(sSocket, NUMPHILOSOPHERS); //NOTE: Do we need to listen each time?
         if (err == -1) {
-            perror("socServer: listen failed");
+            perror("Controller: listen failed");
             exit(3);
         }
         cSocLen = sizeof(sAddr);
@@ -56,22 +56,22 @@ int main(){
         pInfo[connections].pid = connections;
     
         if (pInfo[connections++].cSocket == -1) {
-            perror("socServer: accept failed");
+            perror("Controller: accept failed");
             exit(4);
         }
     }
 
     for (i = 0; i < NUMPHILOSOPHERS; i++) { //create a thread for each philosopher to handle recv and send
         err = pthread_create(&threads[i], NULL, threadFunc, (void*)&pInfo[i]); 
-        if(err == -1){
-            fprintf(stderr, "Failed to create threads with errno %d\n", errno);
+        if(err == -1) {
+            fprintf(stderr, "Controller: Failed to create threads with errno %d\n", errno);
         }
     }
     
     for (i = 0; i < NUMPHILOSOPHERS; i++) {     //send message to all philosophers when all have connected
         err = send(pInfo[i].cSocket, "All philosophers connected!", BUFLEN, 0);
-        if(err == -1){
-            fprintf(stderr, "Failed to send with errno %d\n", errno);
+        if(err == -1) {
+            fprintf(stderr, "Controller: Failed to send with errno %d\n", errno);
         }
     }
 
@@ -92,7 +92,7 @@ void* threadFunc(void* p) {
         //printf("Recieving\n");
         int err = recv(cSocket, buffer, BUFLEN, 0);
         if(err == -1){
-            fprintf(stderr, "Failed to recv with errno %d\n", errno);
+            fprintf(stderr, "Controller: Failed to recv with errno %d\n", errno);
         }
         if (buffer[0] == HUNGRY) {   //Philosopher: Hungry
             takeForks(pid, cSocket); //Try to take forks
@@ -116,8 +116,8 @@ void takeForks(int id, int cSocket) {
     pthread_mutex_lock(&forks[right]);
 
     memset(buffer, 0, BUFLEN);
-    printf("Granting access to forks %d, %d\n", left, right);
-    strncpy(buffer, "Access granted for forks ", 100);
+    printf("Controller: Granting access to forks %d, %d\n", left, right);
+    strncpy(buffer, "Controller: Access granted for forks ", 100);
     sprintf(buf, "%d", left);
     strcat(buffer, buf);
     strcat(buffer, ", ");
@@ -140,7 +140,7 @@ void takeForks(int id, int cSocket) {
 
     pthread_mutex_unlock(&forks[left]);
     pthread_mutex_unlock(&forks[right]);
-    printf("Released forks %d, %d\n", left, right);
+    printf("Controller: Released forks %d, %d\n", left, right);
 }
 
 //void 
