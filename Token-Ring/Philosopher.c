@@ -1,7 +1,6 @@
-
 #include "Shared.h"
 
-pthread_mutex_t tokenLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t eating = PTHREAD_MUTEX_INITIALIZER;
 
 char getTask();
 void* threadFunc(void*);
@@ -10,9 +9,12 @@ typedef struct SockInfo {
     int sendTo;
     int recvFrom;
     int serverStat;
+    int id;
 } SockInfo;
 
-int main(int argc, char* argv[]){
+//volatile bool eating = false;        //eating condition, set to false by default
+
+int main(int argc, char* argv[]) {
 
     if(argc < 4){
         printf("Invalid args: ./philosopher listenPort sendPort startAsServer (0 or 1)\n");
@@ -164,33 +166,29 @@ int main(int argc, char* argv[]){
         printf("Philosopher (%d): Initialized\n", getpid());
 
     }
-
-
-    left = (id - 1 + NUMPHILOSOPHERS) % NUMPHILOSOPHERS;
-    right = (id + 1) % NUMPHILOSOPHERS;
     
+    sockInfo.id = id;
     //create thread to handle token
     err = pthread_create(&thread, NULL, threadFunc, (void*)&sockInfo);
     if(err == -1) {
-        fprintf(stderr, "Controller: Failed to create threads with errno %d\n", errno);
+        fprintf(stderr, "Philosopher (%d): Failed to create threads with errno %d\n", getpid(), errno);
     }
-
+    
     while(true){
         char task = getTask();
         int sleepTime = (rand() % 5) + 1;
 
-        if(task == THINKING){
+        if (task == THINKING) {
             printf("Philosopher (%d): Thinking for %d seconds\n", getpid(), sleepTime);
             sleep(sleepTime);
         }
-        else{
+        else {     //HUNGRY
             printf("Philosopher (%d): Hungry, waiting for token\n", getpid());
-            pthread_mutex_lock(&tokenLock);
-
+            pthread_mutex_lock(&eating);    //Wait for second thread to start eating
             printf("Philosopher (%d): Eating for %d seconds\n", getpid(), sleepTime);
             sleep(sleepTime);
+            pthread_mutex_unlock(&eating);     //Set eating back to false
             printf("Philosopher (%d): Eating finished\n", getpid(), sleepTime);
-            pthread_mutex_unlock(&tokenLock);
         }
     }
     pthread_join(thread, NULL);
@@ -202,38 +200,55 @@ void* threadFunc(void* p) {
     int sendTo = info->sendTo;
     int recvFrom = info->recvFrom;
     int serverStatus = info->serverStat;
+    int id = info->id;
+    int left = (id - 1 + NUMPHILOSOPHERS) % NUMPHILOSOPHERS;
+    int right = (id + 1) % NUMPHILOSOPHERS;
+    bool leftFork, rightFork;       //0 is free, 1 is not free
     char buffer[BUFLEN];
 
     //if its the master server initialize the token
-    if(serverStatus){
+    if(serverStatus) {
         sleep(1);
         memset(buffer, 0, BUFLEN);
-        strcpy(buffer, "Token");
+        //strcpy(buffer, "Token");
+        int i;
+        for (i = 0; i < NUMPHILOSOPHERS; i++) { //initialize token with 0s
+            buffer[i] = '0';
+            //buffer[i + 1] = '\0'
+        }
+        buffer[NUMPHILOSOPHERS] = '\0';
         err = send(sendTo, buffer, BUFLEN, 0);
         if (err == -1) {
             fprintf(stderr, "Philosopher (%d): send failed\n", getpid());
             exit(16);
         }
     }
-    while(true){
+    while(true) {
+        pthread_mutex_trylock(&eating);
         err = recv(recvFrom, buffer, BUFLEN, 0);
         if (err == -1) {
             fprintf(stderr, "Philosopher (%d): recv failed\n", getpid());
             exit(16);
         }
-
-        pthread_mutex_unlock(&tokenLock);
-
-        pthread_mutex_lock(&tokenLock);
+        leftFork = atoi(buffer[left]);
+        rightFork = atoi(buffer[right]);
+        if (!leftFork && !rightFork) {  //Both forks available, start eating
+            buffer[left] = '1';       //set forks as not available
+            buffer[right] = '1';
+            pthread_mutex_unlock(&eating);
+        } else {
+            printf("Philosopher (%d): Forks not available, sending token to next philosopher\n", getpid());
+        }
         err = send(sendTo, buffer, BUFLEN, 0);
         if (err == -1) {
             fprintf(stderr, "Philosopher (%d): send failed\n", getpid());
             exit(16);
         }
+
     }
 }
 
-char getTask(){
+char getTask() {
     char buf[1];
 
     int choice = rand() % 2;
