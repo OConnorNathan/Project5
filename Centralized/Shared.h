@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #define SERVERPORT 54321
 #define SERVERPORTSTR "54321"
 #define SERVERIP "127.0.0.1"

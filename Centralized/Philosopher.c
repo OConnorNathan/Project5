@@ -4,7 +4,6 @@
 char getTask();
 
 int main(){
-
     srand(time(0));
     char task;
     int err, cSocket;
@@ -18,23 +17,24 @@ int main(){
     //Create socket
     cSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (cSocket == -1) {
-        perror(("Philosopher (%d): socket creation failed\n", getpid()));
-        exit(13);
+        printf(("Philosopher (%d): socket creation failed. Error = %s\n", getpid(), strerror(errno)));
+        exit(1);
     }
+
+    sleep(2);
 
     //Create connection to ServerC
     err = connect(cSocket, (struct sockaddr*)&cAddr, sizeof(struct sockaddr_in));
     if (err == -1) {
-        perror(("Philosopher (%d): connect failed with error: %d\n", getpid(), errno));
-        exit(14);
+        perror(("Philosopher (%d): connect failed with error: %s\n", getpid(), strerror(errno)));
+        exit(8);
     }
 
     err = recv(cSocket, buf1, BUFLEN, 0);       //Waits for other philosophers
     if (err == -1) {
         fprintf(stderr, "Philosopher (%d): recv failed\n", getpid());
-        exit(16);
+        exit(7);
     }
-    printf("%s\n", buf1);
 
     while(true){
         memset(buf1, 0, BUFLEN);
@@ -46,50 +46,50 @@ int main(){
             sleep(sleepTime);
         }
         else{
-            printf("Philosopher (%d): Hungry\n", getpid());
+            printf("Philosopher (%d): Hungry.\n", getpid());
 
-            memset(buf1, 0, BUFLEN);
+            memset(buf1, '\0', BUFLEN);
             buf1[0] = task;
             err = send(cSocket, buf1, BUFLEN, 0);
+            //printf("Philosopher (%d): Sent message = %s\n", getpid(), buf1);
             if (err == -1) {
-                fprintf(stderr, "Philosopher (%d): send failed with errno %d\n", getpid(), errno);
-                exit(15);
+                fprintf(stderr, "Philosopher (%d): send failed with errno %s\n", getpid(), strerror(errno));
+                exit(6);
             }
 
-            memset(buf1, 0, BUFLEN);
+            memset(buf1, '\0', BUFLEN);
             err = recv(cSocket, buf1, BUFLEN, 0);
             if (err == -1) {
                 fprintf(stderr, "Philosopher (%d): recv failed\n", getpid());
-                exit(16);
+                exit(7);
             }
-            printf("Philosopher (%d): %s\n", getpid(), buf1);
+
+            //printf("Philosopher (%d): %s\n", getpid(), buf1);
             printf("Philosopher (%d): Eating for %d seconds\n", getpid(), sleepTime);
             sleep(sleepTime);
 
-            memset(buf1, 0, BUFLEN);
+            memset(buf1, '\0', BUFLEN);
             buf1[0] = DONE;
             err = send(cSocket, buf1, BUFLEN, 0);
             if (err == -1) {
                 fprintf(stderr, "Philosopher (%d): send failed\n", getpid());
-                exit(15);
+                exit(6);
             }
+
+            //It is also possible that we may need to do a receive here to wait until 
+            //controller has received the DONE message
         }
     }
 
+    printf("Philosopher (%d): Program finished\n", getpid());
 }
 
 char getTask(){
-    char buf[1];
-
-    int choice = rand() % 2;
-    sprintf(buf, "%d", choice);
-
-    if(buf[0] == THINKING){
+    if((rand() % 2 == 0)){
         return THINKING;
     }
     else{
         return HUNGRY;
-    }
-    
+    }  
 }
 
